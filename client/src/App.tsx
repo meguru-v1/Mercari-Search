@@ -170,8 +170,12 @@ function App() {
       await fetchData();
     } catch (err: any) {
       console.error('Refresh error:', err);
-      const detail = err.response?.data?.message || err.message;
-      setError(`即時更新に失敗: ${detail}。トークンに 'Actions: write' 権限があるか確認してください。`);
+      const status = err.response?.status;
+      if (status === 401 || status === 403) {
+        setError('GitHub トークンの有効期限が切れているか、権限（Actions: write）が足りません。右上の ⚙️ 設定から、新しいトークンを作成して保存し直してください。');
+      } else {
+        setError(`即時更新に失敗しました: ${err.response?.data?.message || err.message}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -42,6 +42,11 @@ async function scrapeMercariItem(url) {
     return data;
   } catch (error) {
     console.error(`Error scraping ${url}:`, error.message);
+    // デバッグのため、失敗時のHTML構造を少しだけ出力する
+    try {
+      const htmlSnippet = await page.evaluate(() => document.body.innerText.substring(0, 200));
+      console.log(`Page content snippet: ${htmlSnippet}`);
+    } catch (e) {}
     return null;
   } finally {
     await browser.close();
