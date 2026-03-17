@@ -20,13 +20,12 @@ jobs:
         
     - name: Install dependencies
       run: |
-        cd server
-        npm install puppeteer-extra puppeteer-extra-plugin-stealth puppeteer
+        npm install
         # ブラウザの依存関係をインストール
         npx puppeteer browsers install chrome
 
     - name: Run Scraper
-      run: node scripts/scrape.js
+      run: npm run scrape
 
     - name: Commit and Push changes
       run: |
