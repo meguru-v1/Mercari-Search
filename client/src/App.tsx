@@ -17,6 +17,19 @@ interface ItemHistory {
 
 type HistoryData = Record<string, ItemHistory>;
 
+// UTF-8 対応の Base64 変換ユーティリティ
+const toBase64 = (str: string) => {
+  const bytes = new TextEncoder().encode(str);
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+  return btoa(binString);
+};
+
+const fromBase64 = (base64: string) => {
+  const binString = atob(base64);
+  const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+  return new TextDecoder().decode(bytes);
+};
+
 function App() {
   const [historyData, setHistoryData] = useState<HistoryData>({});
   const [loading, setLoading] = useState(true);
@@ -68,7 +81,7 @@ function App() {
       });
       
       const sha = getRes.data.sha;
-      const content = JSON.parse(atob(getRes.data.content));
+      const content = JSON.parse(fromBase64(getRes.data.content));
       
       // 2. 重複チェック
       if (content.some((item: any) => item.url === url)) {
@@ -81,7 +94,7 @@ function App() {
       // 4. GitHub にプッシュ
       await axios.put(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
         message: `feat: add new item to track (${url})`,
-        content: btoa(JSON.stringify(newContent, null, 2)),
+        content: toBase64(JSON.stringify(newContent, null, 2)),
         sha: sha
       }, {
         headers: { Authorization: `token ${githubToken}` }
