@@ -37,8 +37,9 @@ function App() {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState('');
-  const [githubToken, setGithubToken] = useState(localStorage.getItem('gh_token') || '');
-  const [showSettings, setShowSettings] = useState(!localStorage.getItem('gh_token'));
+  const [githubToken, setGithubToken] = useState('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');
+  const [showSettings, setShowSettings] = useState(false);
+  const [focusedUrl, setFocusedUrl] = useState<string | null>(null);
 
   const REPO_OWNER = 'GAKU27';
   const REPO_NAME = 'Mercari-Search';
@@ -177,6 +178,16 @@ function App() {
             {trackedItems.length} 個のアイテム
           </div>
         </div>
+        
+        {focusedUrl && (
+          <button 
+            className="back-btn" 
+            onClick={() => setFocusedUrl(null)}
+            style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            ← 一覧に戻る
+          </button>
+        )}
       </header>
 
       {/* 設定セクション */}
@@ -232,14 +243,16 @@ function App() {
         </div>
       ) : (
         <div className="items-grid">
-          {trackedItems.map((trackedItem) => {
+          {trackedItems
+            .filter(item => !focusedUrl || item.url === focusedUrl)
+            .map((trackedItem) => {
             const item = historyData[trackedItem.url];
             const hasData = !!item;
             const currentPrice = hasData && item.history.length > 0 ? item.history[item.history.length - 1].price : 0;
             const lastUpdate = hasData && item.history.length > 0 ? new Date(item.history[item.history.length - 1].timestamp).toLocaleString() : '---';
 
             return (
-              <div key={trackedItem.url} className="card item-card">
+              <div key={trackedItem.url} className={`card item-card ${focusedUrl === trackedItem.url ? 'focused' : ''}`}>
                 <div className="item-header">
                   {hasData ? (
                     <img src={item.imageUrl} alt={item.name} className="item-image" />
@@ -253,6 +266,16 @@ function App() {
                     <div className="item-price">{hasData ? `¥${currentPrice.toLocaleString()}` : "---"}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    {!focusedUrl && (
+                      <button 
+                        onClick={() => setFocusedUrl(trackedItem.url)}
+                        className="delete-btn"
+                        style={{ padding: '8px', color: 'var(--accent)' }}
+                        title="詳細を表示"
+                      >
+                        <TrendingUp size={18} />
+                      </button>
+                    )}
                     <a href={trackedItem.url} target="_blank" rel="noopener noreferrer" className="delete-btn" style={{ padding: '8px' }} title="メルカリを開く">
                       <ExternalLink size={18} />
                     </a>
@@ -267,7 +290,7 @@ function App() {
                   </div>
                 </div>
                 
-                <div className="chart-container">
+                <div className="chart-container" style={{ height: focusedUrl ? '400px' : '200px' }}>
                   {hasData ? <PriceChart data={item.history} /> : (
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                       最初の価格データを取得中...
