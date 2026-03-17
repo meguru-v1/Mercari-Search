@@ -41,10 +41,12 @@ function App() {
   const ENC_TOKEN = 'Z2l0aHViX3BhdF8xMUJWREZSTVEwcUJ5eEdTSUI1SXFSX1N4ZnZFY3Y2cUhOdkRCTTJzQ0ZMSXZaSEdiZmZSWk5CYkF5Q2k0Z29aWDJSRUNFSVpVQVZmZ1puOVZw';
   
   const [githubToken, setGithubToken] = useState(() => {
+    const saved = localStorage.getItem('gh_token');
+    if (saved) return saved;
     try {
       return atob(ENC_TOKEN);
     } catch {
-      return localStorage.getItem('gh_token') || '';
+      return '';
     }
   });
   const [showSettings, setShowSettings] = useState(false);
@@ -168,7 +170,8 @@ function App() {
       await fetchData();
     } catch (err: any) {
       console.error('Refresh error:', err);
-      setError('即時更新の開始に失敗しました。トークンの権限（workflow）を確認してください。');
+      const detail = err.response?.data?.message || err.message;
+      setError(`即時更新に失敗: ${detail}。トークンに 'Actions: write' 権限があるか確認してください。`);
     } finally {
       setLoading(false);
     }
@@ -259,8 +262,9 @@ function App() {
             <h3 style={{ margin: 0 }}>自動登録のセットアップ</h3>
           </div>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            サイトから直接商品を追加するには、GitHub の <strong>Personal Access Token (fine-grained)</strong> が必要です。<br />
-            <code>contents: write</code> 権限を持つトークンを作成して入力してください。
+            即時更新（⚡ボタン）を使うには、GitHub の <strong>Personal Access Token</strong> に以下の権限が必要です：<br />
+            ・<code>contents: write</code> (商品の追加/削除)<br />
+            ・<code>actions: write</code> (即時価格チェックの起動)
           </p>
           <div style={{ display: 'flex', gap: '12px' }}>
             <input 
