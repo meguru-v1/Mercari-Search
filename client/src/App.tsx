@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, TrendingUp, RefreshCw, ExternalLink, Settings, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Plus, TrendingUp, RefreshCw, ExternalLink, Settings, ShieldCheck, AlertCircle, Trash2 } from 'lucide-react';
 import PriceChart from './components/PriceChart';
 import './index.css';
 
@@ -110,13 +110,53 @@ function App() {
     }
   };
 
+  const deleteItem = async (targetUrl: string) => {
+    if (!githubToken || !window.confirm('この商品の追跡を停止しますか？')) return;
+    
+    setError(null);
+    try {
+      // 1. 現在の tracked_items.json を取得
+      const getRes = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+        headers: { Authorization: `token ${githubToken}` }
+      });
+      
+      const sha = getRes.data.sha;
+      const content = JSON.parse(fromBase64(getRes.data.content));
+      
+      // 2. 対象を除外
+      const newContent = content.filter((item: any) => item.url !== targetUrl);
+      
+      // 3. GitHub にプッシュ
+      await axios.put(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+        message: `feat: remove item from track (${targetUrl})`,
+        content: toBase64(JSON.stringify(newContent, null, 2)),
+        sha: sha
+      }, {
+        headers: { Authorization: `token ${githubToken}` }
+      });
+
+      alert('商品を削除しました。反映まで数分かかる場合があります。');
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      setError('削除に失敗しました。トークンの権限を確認してください。');
+    }
+  };
+
   const urls = Object.keys(historyData);
 
   return (
     <div className="container">
       <header>
-        <h1>Mercari Price Tracker</h1>
-        <p className="subtitle">GitHub Actions で 30分ごとに価格を自動チェック</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
+          <div>
+            <h1>Mercari Price Tracker</h1>
+            <p className="subtitle" style={{ margin: 0 }}>GitHub Actions で 30分ごとに価格を自動チェック</p>
+          </div>
+          <div className="badge">
+            {Object.keys(historyData).length} 個のアイテム
+          </div>
+        </div>
       </header>
 
       {/* 設定セクション */}
@@ -185,9 +225,19 @@ function App() {
                     <div className="item-name">{item.name}</div>
                     <div className="item-price">¥{currentPrice.toLocaleString()}</div>
                   </div>
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="delete-btn" style={{ padding: '8px' }}>
-                    <ExternalLink size={18} />
-                  </a>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="delete-btn" style={{ padding: '8px' }} title="メルカリを開く">
+                      <ExternalLink size={18} />
+                    </a>
+                    <button 
+                      onClick={() => deleteItem(url)} 
+                      className="delete-btn" 
+                      style={{ padding: '8px', color: '#ff4d4d' }}
+                      title="追跡を解除"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="chart-container">

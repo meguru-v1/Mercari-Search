@@ -51,6 +51,19 @@ h1 {
   font-size: 1.1rem;
 }
 
+.badge {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
