@@ -87,6 +87,9 @@ async function main() {
       priceHistory[item.url].name = result.name;
       priceHistory[item.url].imageUrl = result.imageUrl;
       
+      // trackedItems の名前も更新
+      item.name = result.name;
+      
       console.log(`Successfully updated ${item.url}: ¥${result.price}`);
     }
     
@@ -95,6 +98,7 @@ async function main() {
   }
 
   fs.writeFileSync(PRICE_HISTORY_PATH, JSON.stringify(priceHistory, null, 2));
+  fs.writeFileSync(TRACKED_ITEMS_PATH, JSON.stringify(trackedItems, null, 2));
   console.log('Update complete.');
 }
 

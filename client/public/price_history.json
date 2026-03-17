@@ -1,1 +1,32 @@
-{}
+{
+  "https://jp.mercari.com/item/m48069082968": {
+    "name": "限定品 ステッドラー925-35 クラシックゴールド ムーンシルバー by メルカリ",
+    "imageUrl": "https://static.mercdn.net/item/detail/orig/photos/m48069082968_1.jpg?1760409387",
+    "history": [
+      {
+        "price": 9180,
+        "timestamp": "2026-03-17T07:18:28.804Z"
+      }
+    ]
+  },
+  "https://jp.mercari.com/item/m49317819549": {
+    "name": "3/18発送 ステッドラー 925 STAEDTLER シャープペンシル 限定 by メルカリ",
+    "imageUrl": "https://static.mercdn.net/item/detail/orig/photos/m49317819549_1.jpg?1742304390",
+    "history": [
+      {
+        "price": 177777,
+        "timestamp": "2026-03-17T07:18:28.804Z"
+      }
+    ]
+  },
+  "https://jp.mercari.com/item/m59874409391": {
+    "name": "【新品】ステッドラー 925 35 30周年記念 限定 パールホワイト by メルカリ",
+    "imageUrl": "https://static.mercdn.net/item/detail/orig/photos/m59874409391_1.jpg?1773232670",
+    "history": [
+      {
+        "price": 5500,
+        "timestamp": "2026-03-17T07:18:28.804Z"
+      }
+    ]
+  }
+}

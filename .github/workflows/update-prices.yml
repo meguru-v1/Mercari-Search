@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
     steps:
     - uses: actions/checkout@v4
     
@@ -17,12 +19,14 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
         
     - name: Install dependencies
       run: |
         npm install
-        # ブラウザの依存関係をインストール
         npx puppeteer browsers install chrome
+        cd client && npm install
 
     - name: Run Scraper
       run: npm run scrape
@@ -31,6 +35,23 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
-        git add client/public/price_history.json
-        git commit -m "chore: update prices [skip ci]" || echo "No changes to commit"
+        git add client/public/price_history.json client/public/tracked_items.json
+        git commit -m "chore: update prices and item names [skip ci]" || echo "No changes to commit"
         git push
+
+    - name: Build
+      run: |
+        cd client
+        npm run build
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './client/dist'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
