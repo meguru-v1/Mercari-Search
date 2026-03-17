@@ -1,0 +1,51 @@
+.action-btn.zap {
+  background: linear-gradient(135deg, #fceabb 0%, #f8b500 100%);
+  color: #000;
+  border: none;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn.zap:hover:not(:disabled) {
+  box-shadow: 0 0 15px rgba(248, 181, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.action-btn.zap:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid #f8b500;
+  color: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast.success {
+  border-color: #2fb344;
+}
+
+.toast.error {
+  border-color: #d63939;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

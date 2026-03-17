@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, TrendingUp, RefreshCw, ExternalLink, Settings, ShieldCheck, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, ExternalLink, Settings, AlertCircle, Trash2, Zap } from 'lucide-react';
 import PriceChart from './components/PriceChart';
 import './index.css';
 
@@ -49,6 +49,7 @@ function App() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [focusedUrl, setFocusedUrl] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const REPO_OWNER = 'GAKU27';
   const REPO_NAME = 'Mercari-Search';
@@ -62,9 +63,10 @@ function App() {
 
   const fetchData = async () => {
     try {
+      const baseUrl = import.meta.env.BASE_URL;
       const [historyRes, itemsRes] = await Promise.all([
-        axios.get('./price_history.json?t=' + Date.now()),
-        axios.get('./tracked_items.json?t=' + Date.now())
+        axios.get(`${baseUrl}price_history.json?t=${Date.now()}`),
+        axios.get(`${baseUrl}tracked_items.json?t=${Date.now()}`)
       ]);
       setHistoryData(historyRes.data);
       setTrackedItems(itemsRes.data);
@@ -119,23 +121,36 @@ function App() {
       setTrackedItems(newContent);
       setUrl('');
 
-      // 6. スクレイピングワークフローを即座にキック（オプション）
-      try {
-        await axios.post(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/update-prices.yml/dispatches`, {
-          ref: 'main'
-        }, {
-          headers: { Authorization: `token ${githubToken}` }
-        });
-      } catch (e) {
-        console.warn('Workflow dispatch failed (possibly missing actions:write permission)', e);
-      }
+  const handleRefresh = async () => {
+    if (!githubToken) {
+      setError('GitHub トークンが設定されていません。');
+      return;
+    }
 
-      alert('商品を追加しました！すぐに価格チェックを開始します。');
+    try {
+      setLoading(true);
+      // GitHub Actions の価格更新ワークフローを手動起動
+      await axios.post(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/update-prices.yml/dispatches`,
+        { ref: 'main' },
+        {
+          headers: {
+            Authorization: `token ${githubToken}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      setToast({ message: '最新価格の取得リクエストを送信しました！', type: 'success' });
+      setTimeout(() => setToast(null), 5000);
+      
+      // データの再読み込み（UI上の見た目を即時更新）
+      await fetchData();
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.status === 401 ? 'GitHub トークンが無効です。' : err.message);
+      console.error('Refresh error:', err);
+      setError('即時更新の開始に失敗しました。トークンの権限（workflow）を確認してください。');
     } finally {
-      setAdding(false);
+      setLoading(false);
     }
   };
 
@@ -183,10 +198,27 @@ function App() {
             <h1>Mercari Price Tracker</h1>
             <p className="subtitle" style={{ margin: 0 }}>GitHub Actions で 30分ごとに価格を自動チェック</p>
           </div>
-          <div className="badge">
-            {trackedItems.length} 個のアイテム
+          <div className="badge-container" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              onClick={handleRefresh} 
+              className="action-btn zap"
+              disabled={loading}
+              title="今すぐ最新価格をチェック"
+            >
+              <Zap size={18} className={loading ? 'animate-pulse' : ''} />
+              <span>即時取得</span>
+            </button>
+            <div className="badge">
+              {trackedItems.length} 個のアイテム
+            </div>
           </div>
         </div>
+        
+        {toast && (
+          <div className={`toast ${toast.type}`}>
+            {toast.message}
+          </div>
+        )}
         
         {focusedUrl && (
           <button 
