@@ -52,7 +52,9 @@ function App() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [focusedUrl, setFocusedUrl] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'sync' } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastCheckTimeAtStart, setLastCheckTimeAtStart] = useState<string | null>(null);
 
   const REPO_OWNER = 'GAKU27';
   const REPO_NAME = 'Mercari-Search';
@@ -74,13 +76,55 @@ function App() {
       setHistoryData(historyRes.data);
       setTrackedItems(itemsRes.data);
       setError(null);
+      return historyRes.data;
     } catch (err) {
       console.error('Failed to fetch data', err);
       setError('データの読み込みに失敗しました。最初のスクレイピングが完了するまでお待ちください。');
+      return null;
     } finally {
       setLoading(false);
     }
   };
+
+  // 同期ポーリングのロジック
+  useEffect(() => {
+    if (!isSyncing) return;
+
+    const pollInterval = setInterval(async () => {
+      console.log('Polling for new data...');
+      const newData = await fetchData();
+      
+      if (newData) {
+        // 全アイテムの中で最も新しい lastChecked を探す
+        const newestCheck = Object.values(newData as HistoryData)
+          .map(item => item.lastChecked)
+          .filter(Boolean)
+          .sort()
+          .reverse()[0];
+
+        // 開始時よりも新しいタイムスタンプがあれば同期完了
+        if (newestCheck && (!lastCheckTimeAtStart || newestCheck > lastCheckTimeAtStart)) {
+          setIsSyncing(false);
+          setToast({ message: '最新の価格データに更新されました！', type: 'success' });
+          setTimeout(() => setToast(null), 5000);
+        }
+      }
+    }, 15000); // 15秒おきにチェック
+
+    // タイムアウト（5分経過したら諦める）
+    const timeout = setTimeout(() => {
+      if (isSyncing) {
+        setIsSyncing(false);
+        setToast({ message: '同期がタイムアウトしました。後ほど手動でリロードしてください。', type: 'error' });
+        setTimeout(() => setToast(null), 5000);
+      }
+    }, 1000 * 60 * 5);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(timeout);
+    };
+  }, [isSyncing, lastCheckTimeAtStart]);
 
   const saveToken = (token: string) => {
     localStorage.setItem('gh_token', token);
@@ -124,18 +168,28 @@ function App() {
       setTrackedItems(newContent);
       setUrl('');
 
-      // 6. スクレイピングワークフローを即座にキック（オプション）
+      // 6. 同期モード開始（最新のチェック時刻を記録しておく）
+      const newestCheck = Object.values(historyData)
+        .map(item => item.lastChecked)
+        .filter(Boolean)
+        .sort()
+        .reverse()[0] || null;
+      setLastCheckTimeAtStart(newestCheck);
+      setIsSyncing(true);
+
+      // 7. スクレイピングワークフローを即座にキック（オプション）
       try {
         await axios.post(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/update-prices.yml/dispatches`, {
           ref: 'main'
         }, {
           headers: { Authorization: `token ${githubToken}` }
         });
+        setToast({ message: '商品を追加しました。価格取得を開始します...', type: 'sync' });
       } catch (e) {
         console.warn('Workflow dispatch failed (possibly missing actions:write permission)', e);
+        setToast({ message: '商品を追加しました。反映までしばらくお待ちください。', type: 'success' });
+        setTimeout(() => setToast(null), 5000);
       }
-
-      alert('商品を追加しました！すぐに価格チェックを開始します。');
     } catch (err: any) {
       console.error(err);
       setError(err.response?.status === 401 ? 'GitHub トークンが無効です。' : err.message);
@@ -152,6 +206,14 @@ function App() {
 
     try {
       setLoading(true);
+      // 同期モードの準備
+      const newestCheck = Object.values(historyData)
+        .map(item => item.lastChecked)
+        .filter(Boolean)
+        .sort()
+        .reverse()[0] || null;
+      setLastCheckTimeAtStart(newestCheck);
+
       // GitHub Actions の価格更新ワークフローを手動起動
       await axios.post(
         `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/update-prices.yml/dispatches`,
@@ -164,11 +226,9 @@ function App() {
         }
       );
       
-      setToast({ message: '最新価格の取得リクエストを送信しました！', type: 'success' });
-      setTimeout(() => setToast(null), 5000);
+      setIsSyncing(true);
+      setToast({ message: '取得を開始しました。完了までこのままお待ちください...', type: 'sync' });
       
-      // データの再読み込み（UI上の見た目を即時更新）
-      await fetchData();
     } catch (err: any) {
       console.error('Refresh error:', err);
       const status = err.response?.status;
