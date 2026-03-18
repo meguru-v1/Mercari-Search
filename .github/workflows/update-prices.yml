@@ -22,13 +22,13 @@ jobs:
         
     - name: Install root dependencies
       run: |
-        npm install
+        npm ci || npm install --no-save
         npx puppeteer browsers install chrome
 
     - name: Install client dependencies
       run: |
         cd client
-        npm install --no-package-lock
+        npm ci || npm install --no-save
 
     - name: Run Scraper
       run: npm run scrape
@@ -37,12 +37,18 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
-        # package-lock.json の変更を破棄して Git 操作の邪魔にならないようにする
-        git checkout package-lock.json || echo "No package-lock.json to checkout"
+        # 意図しない変更（package-lock.json等）をリセット
+        git checkout package-lock.json || true
+        git checkout client/package-lock.json || true
+        
         git add client/public/price_history.json client/public/tracked_items.json
-        git commit -m "chore: update prices and item names [skip ci]" || echo "No changes to commit"
-        git pull --rebase origin main
-        git push
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: update prices and item names [skip ci]"
+          git pull --rebase origin main
+          git push
+        fi
 
     - name: Build
       run: |
