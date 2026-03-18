@@ -45,10 +45,16 @@ function App() {
     const saved = localStorage.getItem('gh_token');
     if (saved) return saved;
     try {
-      return atob(ENC_TOKEN);
-    } catch {
-      return '';
+      // トークンがない場合、埋め込みのトークンをデコードして使用
+      const decoded = fromBase64(ENC_TOKEN);
+      if (decoded) {
+        localStorage.setItem('gh_token', decoded);
+        return decoded;
+      }
+    } catch (e) {
+      console.error('Failed to auto-decode token:', e);
     }
+    return '';
   });
   const [showSettings, setShowSettings] = useState(false);
   const [focusedUrl, setFocusedUrl] = useState<string | null>(null);

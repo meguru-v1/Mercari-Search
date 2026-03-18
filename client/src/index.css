@@ -42,6 +42,7 @@ h1 {
   font-weight: 800;
   background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 10px;
 }
@@ -162,6 +163,7 @@ button:disabled {
   margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -291,4 +293,85 @@ button:disabled {
 @keyframes slideIn {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 12px;
+  }
+
+  header {
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+  }
+
+  header > div {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .badge-container {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .add-item-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .add-item-form button {
+    width: 100%;
+    order: 2;
+  }
+
+  .items-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .item-card {
+    padding: 16px;
+  }
+
+  .item-header {
+    gap: 12px;
+  }
+
+  .item-image {
+    width: 60px;
+    height: 60px;
+  }
+
+  .item-name {
+    font-size: 1rem;
+  }
+
+  .item-price {
+    font-size: 1.2rem;
+  }
+
+  .chart-container {
+    height: 180px;
+  }
+
+  .item-card.focused .chart-container {
+    height: 300px;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    text-align: center;
+  }
 }
