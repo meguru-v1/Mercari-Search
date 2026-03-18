@@ -40,21 +40,26 @@ function App() {
   const [url, setUrl] = useState('');
   // 難読化したトークン（公開リポジトリでの自動削除対策）
   const ENC_TOKEN = 'Z2l0aHViX3BhdF8xMUJWREZSTVEwcUJ5eEdTSUI1SXFSX1N4ZnZFY3Y2cUhOdkRCTTJzQ0ZMSXZaSEdiZmZSWk5CYkF5Q2k0Z29aWDJSRUNFSVpVQVZmZ1puOVZw';
+  const TOKEN_VERSION = 'v2'; // トークンを更新した際はここを上げる
   
   const [githubToken, setGithubToken] = useState(() => {
     const saved = localStorage.getItem('gh_token');
-    if (saved) return saved;
-    try {
-      // トークンがない場合、埋め込みのトークンをデコードして使用
-      const decoded = fromBase64(ENC_TOKEN);
-      if (decoded) {
-        localStorage.setItem('gh_token', decoded);
-        return decoded;
+    const savedVersion = localStorage.getItem('gh_token_version');
+
+    // バージョンが古いか、トークンがない場合は強制的に埋め込みトークンに更新
+    if (!saved || savedVersion !== TOKEN_VERSION) {
+      try {
+        const decoded = fromBase64(ENC_TOKEN);
+        if (decoded) {
+          localStorage.setItem('gh_token', decoded);
+          localStorage.setItem('gh_token_version', TOKEN_VERSION);
+          return decoded;
+        }
+      } catch (e) {
+        console.error('Failed to auto-decode token:', e);
       }
-    } catch (e) {
-      console.error('Failed to auto-decode token:', e);
     }
-    return '';
+    return saved || '';
   });
   const [showSettings, setShowSettings] = useState(false);
   const [focusedUrl, setFocusedUrl] = useState<string | null>(null);
@@ -134,8 +139,25 @@ function App() {
 
   const saveToken = (token: string) => {
     localStorage.setItem('gh_token', token);
+    localStorage.setItem('gh_token_version', 'custom'); // 手動入力時はバージョンをカスタムにする
     setGithubToken(token);
     setShowSettings(false);
+  };
+
+  const resetToken = () => {
+    try {
+      const decoded = fromBase64(ENC_TOKEN);
+      if (decoded && window.confirm('トークンをデフォルト（最新）にリセットしますか？')) {
+        localStorage.setItem('gh_token', decoded);
+        localStorage.setItem('gh_token_version', TOKEN_VERSION);
+        setGithubToken(decoded);
+        setShowSettings(false);
+        setToast({ message: 'トークンをリセットしました。', type: 'success' });
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const addItem = async (e: React.FormEvent) => {
@@ -337,7 +359,7 @@ function App() {
             ・<code>contents: write</code> (商品の追加/削除)<br />
             ・<code>actions: write</code> (即時価格チェックの起動)
           </p>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
             <input 
               type="password" 
               placeholder="github_pat_..." 
@@ -345,6 +367,10 @@ function App() {
               onChange={(e) => setGithubToken(e.target.value)} 
             />
             <button onClick={() => saveToken(githubToken)}>保存</button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <button onClick={resetToken} style={{ background: 'var(--glass)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: '0.8rem' }}>デフォルトに戻す</button>
+            <button onClick={() => setShowSettings(false)} style={{ background: 'transparent', color: 'var(--text-muted)', padding: '8px 16px', fontSize: '0.8rem' }}>閉じる</button>
           </div>
         </div>
       ) : (
