@@ -1,6 +1,8 @@
 name: Update Mercari Prices
 
 on:
+  push:
+    branches: [ "main" ]
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch: # 手動実行用
