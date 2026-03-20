@@ -25,7 +25,6 @@ jobs:
     - name: Install root dependencies
       run: |
         npm ci || npm install --no-save
-        npx puppeteer browsers install chrome
 
     - name: Install client dependencies
       run: |

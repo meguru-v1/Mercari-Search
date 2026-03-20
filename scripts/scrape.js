@@ -1,10 +1,9 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+// no longer requires puppeteer
 const fs = require('fs');
 const path = require('path');
 const webpush = require('web-push');
 
-puppeteer.use(StealthPlugin());
+// Plugin instantiation removed
 
 const TRACKED_ITEMS_PATH = path.join(__dirname, '../client/public/tracked_items.json');
 const PRICE_HISTORY_PATH = path.join(__dirname, '../client/public/price_history.json');
@@ -56,53 +55,43 @@ async function sendPushNotifications(title, body) {
 }
 
 async function scrapeMercariItem(url) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    const data = await page.evaluate(() => {
-      const getMeta = (property) => {
-        const element = document.querySelector(`meta[property="${property}"]`) || 
-                        document.querySelector(`meta[name="${property}"]`);
-        return element ? element.getAttribute('content') : null;
-      };
-
-      const title = getMeta('og:title') || document.querySelector('h1')?.innerText;
-      const priceStr = getMeta('product:price:amount') || 
-                       document.querySelector('[data-testid="price"]')?.innerText?.replace(/[^0-9]/g, '') ||
-                       document.querySelector('span[class*="price"]')?.innerText?.replace(/[^0-9]/g, '');
-      const imageUrl = getMeta('og:image');
-
-      const bodyText = document.body.innerText || '';
-      const isDeleted = bodyText.includes('この商品は削除されました') || 
-                        bodyText.includes('ページが見つかりません') ||
-                        document.title.includes('エラー');
-
-      return {
-        name: title ? title.replace(' - メルカリ', '') : null,
-        price: parseInt(priceStr, 10),
-        imageUrl: imageUrl,
-        isDeleted: isDeleted
-      };
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8'
+      }
     });
 
-    return data;
+    if (!res.ok) {
+      if (res.status === 404) return { isDeleted: true };
+      console.error(`Failed to fetch ${url}: ${res.status}`);
+      return null;
+    }
+
+    const html = await res.text();
+    
+    const titleMatch = html.match(/<meta\s+property="?og:title"?\s+content="([^"]+)"/i) || html.match(/<title>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1] : null;
+    
+    const priceMatch = html.match(/<meta\s+property="?product:price:amount"?\s+content="(\d+)"/i) || html.match(/data-testid="price"[^>]*>.*?￥?(\d+)/) || html.match(/"price":\s*"(\d+)"/i);
+    const priceStr = priceMatch ? priceMatch[1] : null;
+    
+    const imgMatch = html.match(/<meta\s+property="?og:image"?\s+content="([^"]+)"/i);
+    const imageUrl = imgMatch ? imgMatch[1] : null;
+    
+    const isDeleted = html.includes('この商品は削除されました') || html.includes('ページが見つかりません');
+
+    return {
+      name: title ? title.replace(' - メルカリ', '').replace(' | メルカリ', '') : null,
+      price: parseInt(priceStr, 10),
+      imageUrl: imageUrl,
+      isDeleted: isDeleted
+    };
   } catch (error) {
     console.error(`Error scraping ${url}:`, error.message);
-    // デバッグのため、失敗時のHTML構造を少しだけ出力する
-    try {
-      const htmlSnippet = await page.evaluate(() => document.body.innerText.substring(0, 200));
-      console.log(`Page content snippet: ${htmlSnippet}`);
-    } catch (e) {}
     return null;
-  } finally {
-    await browser.close();
   }
 }
 
