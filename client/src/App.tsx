@@ -156,6 +156,14 @@ function App() {
       
       try {
         const registration = await navigator.serviceWorker.ready;
+        
+        // iOSのSafari等で、ホーム画面に追加されていない場合は pushManager が存在しません
+        if (!registration.pushManager) {
+          setToast({ message: 'お使いのブラウザでは通知機能がサポートされていません。iPhoneの場合は「ホーム画面に追加」をしてからアプリを開いてください。', type: 'error' });
+          setTimeout(() => setToast(null), 8000);
+          return;
+        }
+
         let subscription = await registration.pushManager.getSubscription();
         
         if (!subscription) {
@@ -180,9 +188,11 @@ function App() {
       // 購読解除
       try {
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await subscription.unsubscribe();
+        if (registration.pushManager) {
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            await subscription.unsubscribe();
+          }
         }
       } catch (e) {
         console.warn('Failed to unsubscribe', e);
