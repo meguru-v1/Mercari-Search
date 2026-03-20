@@ -12,11 +12,17 @@ const PUSH_SUBS_PATH = path.join(__dirname, '../client/public/push_subscriptions
 
 // Web Push 設定 (GitHub Secrets から環境変数として渡される)
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_EMAIL) {
-  webpush.setVapidDetails(
-    process.env.VAPID_EMAIL,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+  try {
+    webpush.setVapidDetails(
+      process.env.VAPID_EMAIL,
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  } catch (error) {
+    console.error('VAPID Configuration Error:', error.message);
+    // VAPIDキーが無効な場合は undefined に戻してWeb Pushを無効化する
+    delete process.env.VAPID_PUBLIC_KEY;
+  }
 } else {
   console.warn('VAPID keys not fully set in environment variables. Web Push is deactivated.');
 }
