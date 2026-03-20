@@ -70,9 +70,15 @@ function App() {
       try {
         const registration = await navigator.serviceWorker.ready;
         if (!registration.pushManager) {
-          setToast({ message: '通知機能がサポートされていません。iPhoneの場合は「ホーム画面に追加」をしてから開いてください。', type: 'error' });
+          setToast({ message: '通知機能がサポートされていません。iPhoneの場合はSafariの下メニューから「ホーム画面に追加」をしてから、ホーム画面のアイコンを開いて設定してください。', type: 'error' });
           setTimeout(() => setToast(null), 8000);
           return;
+        }
+
+        // iOSでは pushManager.subscribe の前に明示的に権限を要求する必要がある
+        const permission = await window.Notification.requestPermission();
+        if (permission !== 'granted') {
+          throw new Error('通知がブロックされています。スマホの「設定」アプリの中にあるSafariやPWAの設定から通知を許可してください。');
         }
 
         let subscription = await registration.pushManager.getSubscription();
