@@ -60,6 +60,8 @@ function App() {
     return localStorage.getItem('notifications_enabled') === 'true';
   });
   const prevHistoryRef = useRef<HistoryData>({});
+  const recentlyAddedUrls = useRef<Map<string, {name: string, expiry: number}>>(new Map());
+  const recentlyDeletedUrls = useRef<Set<string>>(new Set());
 
   // Service Worker の登録
   useEffect(() => {
@@ -150,7 +152,28 @@ function App() {
       
       prevHistoryRef.current = newData;
       setHistoryData(newData);
-      setTrackedItems(itemsRes.data);
+
+      // --- 楽観的UI保護 ---
+      // 最近追加したアイテムがAPIレスポンスに含まれていない場合は補完する（キャッシュ遅延対策）
+      const now = Date.now();
+      let mergedItems = (itemsRes.data as {url: string, name: string}[]);
+
+      // 期限切れの保護を削除
+      for (const [u, info] of recentlyAddedUrls.current.entries()) {
+        if (now > info.expiry) recentlyAddedUrls.current.delete(u);
+      }
+
+      // まだ保護期間中のアイテムを補完
+      for (const [u, info] of recentlyAddedUrls.current.entries()) {
+        if (!mergedItems.some(item => item.url === u)) {
+          mergedItems = [...mergedItems, { url: u, name: info.name }];
+        }
+      }
+
+      // 最近削除されたアイテムを除外
+      mergedItems = mergedItems.filter(item => !recentlyDeletedUrls.current.has(item.url));
+
+      setTrackedItems(mergedItems);
       setError(null);
       return newData;
     } catch (err) {
@@ -218,8 +241,12 @@ function App() {
 
       await axios.post(`${API_BASE_URL}/api/items`, { url, userId });
 
+      // 楽観的UI: 60秒間はfetchDataに上書きされないよう保護
+      recentlyAddedUrls.current.set(url, { name: '取得中...', expiry: Date.now() + 60000 });
+      recentlyDeletedUrls.current.delete(url);
+
       // ローカル更新
-      setTrackedItems([...trackedItems, { url, name: "取得中..." }]);
+      setTrackedItems(prev => [...prev, { url, name: "取得中..." }]);
       setUrl('');
 
       // 同期モード
@@ -268,7 +295,11 @@ function App() {
     setError(null);
     try {
       await axios.post(`${API_BASE_URL}/api/items/delete`, { url: targetUrl, userId });
-      setTrackedItems(trackedItems.filter(i => i.url !== targetUrl));
+      // 楽観的UI: 削除したアイテムが古いキャッシュで復活しないよう保護
+      recentlyDeletedUrls.current.add(targetUrl);
+      recentlyAddedUrls.current.delete(targetUrl);
+      setTimeout(() => recentlyDeletedUrls.current.delete(targetUrl), 60000);
+      setTrackedItems(prev => prev.filter(i => i.url !== targetUrl));
       alert('商品を削除しました。');
     } catch (err: any) {
       console.error(err);
