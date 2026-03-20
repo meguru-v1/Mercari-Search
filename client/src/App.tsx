@@ -43,6 +43,15 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   
+  const [userId] = useState(() => {
+    let id = localStorage.getItem('userId');
+    if (!id) {
+      id = 'user_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      localStorage.setItem('userId', id);
+    }
+    return id;
+  });
+  
   const [focusedUrl, setFocusedUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'sync' } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -89,8 +98,9 @@ function App() {
           });
         }
         
-        // 購読情報をAPI Proxyに送信
-        await axios.post(`${API_BASE_URL}/api/subscribe`, subscription);
+        // 購読情報をAPI Proxyに送信（ユーザーIDも付与）
+        const subData = subscription.toJSON();
+        await axios.post(`${API_BASE_URL}/api/subscribe`, { ...subData, userId });
         
         setNotificationsEnabled(true);
         localStorage.setItem('notifications_enabled', 'true');
@@ -108,7 +118,7 @@ function App() {
           const subscription = await registration.pushManager.getSubscription();
           if (subscription) {
             // 解除リクエストをAPI Proxyに送信
-            await axios.post(`${API_BASE_URL}/api/unsubscribe`, { endpoint: subscription.endpoint });
+            await axios.post(`${API_BASE_URL}/api/unsubscribe`, { endpoint: subscription.endpoint, userId });
             await subscription.unsubscribe();
           }
         }
@@ -131,10 +141,10 @@ function App() {
 
   const fetchData = async () => {
     try {
-      // API Proxyから取得（高速）
+      // API Proxyから取得（高速・自分専用リスト）
       const [historyRes, itemsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/history`),
-        axios.get(`${API_BASE_URL}/api/items`)
+        axios.get(`${API_BASE_URL}/api/items`, { headers: { 'x-user-id': userId } })
       ]);
       const newData = historyRes.data as HistoryData;
       
@@ -206,7 +216,7 @@ function App() {
         throw new Error('この商品は既に登録されています。');
       }
 
-      await axios.post(`${API_BASE_URL}/api/items`, { url });
+      await axios.post(`${API_BASE_URL}/api/items`, { url, userId });
 
       // ローカル更新
       setTrackedItems([...trackedItems, { url, name: "取得中..." }]);
@@ -257,7 +267,7 @@ function App() {
     if (!window.confirm('この商品の追跡を停止しますか？')) return;
     setError(null);
     try {
-      await axios.post(`${API_BASE_URL}/api/items/delete`, { url: targetUrl });
+      await axios.post(`${API_BASE_URL}/api/items/delete`, { url: targetUrl, userId });
       setTrackedItems(trackedItems.filter(i => i.url !== targetUrl));
       alert('商品を削除しました。');
     } catch (err: any) {
@@ -314,21 +324,8 @@ function App() {
         )}
       </header>
 
-      <form className="add-item-form" onSubmit={addItem}>
-        <input
-          type="url"
-          placeholder="メルカリの商品のURLを貼り付け..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          disabled={adding}
-        />
-        <button type="submit" disabled={adding || !url}>
-          {adding ? <div className="loading-spinner"></div> : <><Plus size={20} style={{marginRight: '8px'}} />追跡を開始</>}
-        </button>
-      </form>
-
       {error && (
-        <div className="card" style={{ backgroundColor: 'rgba(255,77,77,0.05)', borderColor: 'var(--primary)', color: '#ff4d4d', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="card" style={{ backgroundColor: 'rgba(255,77,77,0.05)', borderColor: 'var(--primary)', color: '#ff4d4d', margin: '20px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <AlertCircle size={20} />
           {error}
         </div>
@@ -434,13 +431,29 @@ function App() {
           })}
 
           {trackedItems.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: 'var(--text-muted)', border: '2px dashed var(--border)', borderRadius: '16px' }}>
-              <TrendingUp size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-              <p>追跡している商品がありません。上の入力欄からURLを追加してください。</p>
+            <div className="empty-state">
+              <TrendingUp size={48} style={{ marginBottom: '16px', opacity: 0.5, color: 'var(--accent)' }} />
+              <h3>追跡している商品がありません</h3>
+              <p>下の入力欄からメルカリのURLを追加してください。</p>
             </div>
           )}
         </div>
       )}
+
+      <div className="floating-bottom-bar">
+        <form className="add-item-form" onSubmit={addItem}>
+          <input
+            type="url"
+            placeholder="メルカリの商品URLを貼り付け..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={adding}
+          />
+          <button type="submit" className="add-btn" disabled={adding || !url}>
+            {adding ? <div className="loading-spinner"></div> : <><Plus size={20} /> 追加</>}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

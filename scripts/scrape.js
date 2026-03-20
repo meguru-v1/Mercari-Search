@@ -26,7 +26,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env
   console.warn('VAPID keys not fully set in environment variables. Web Push is deactivated.');
 }
 
-async function sendPushNotifications(title, body) {
+async function sendPushNotifications(title, body, targetUserIds) {
   if (!process.env.VAPID_PUBLIC_KEY) return;
   
   let subs = [];
@@ -44,12 +44,19 @@ async function sendPushNotifications(title, body) {
     url: 'https://gaku27.github.io/Mercari-Search/'
   });
 
-  const promises = subs.map(sub => 
-    webpush.sendNotification(sub, payload).catch(err => {
+  const promises = subs.map(sub => {
+    // もしターゲットユーザーが指定されていて、かつサブスクにもユーザーIDが紐づいているなら絞り込む
+    if (targetUserIds && targetUserIds.length > 0 && sub.userId) {
+      if (!targetUserIds.includes(sub.userId)) {
+        return Promise.resolve(); // このユーザーには送らない
+      }
+    }
+    
+    return webpush.sendNotification(sub, payload).catch(err => {
       console.error('Failed to notify a subscriber:', err.statusCode);
       // TODO: 必要に応じて 410 Gone 等のエラーで無効な購読を削除する処理を追加
-    })
-  );
+    });
+  });
 
   await Promise.allSettled(promises);
 }
@@ -113,7 +120,7 @@ async function main() {
     if (result && result.isDeleted) {
       const displayName = result.name || item.name || '商品';
       console.log(`Item deleted: ${displayName}`);
-      await sendPushNotifications(`❌ 削除済み: ${displayName}`, `この商品はメルカリから削除されたため、追跡を自動停止しました。`);
+      await sendPushNotifications(`❌ 削除済み: ${displayName}`, `この商品はメルカリから削除されたため、追跡を自動停止しました。`, item.users);
       
       // priceHistoryからも削除
       if (priceHistory[item.url]) {
@@ -147,7 +154,7 @@ async function main() {
           const sign = diff > 0 ? '+' : '';
           const title = `${arrow} ${result.name}`;
           const body = `¥${lastEntry.price.toLocaleString()} → ¥${result.price.toLocaleString()} (${sign}¥${diff.toLocaleString()})`;
-          await sendPushNotifications(title, body);
+          await sendPushNotifications(title, body, item.users);
           console.log(`Push sent: ${title} / ${body}`);
         }
 

@@ -29,8 +29,10 @@ function enqueueWrite(operation) {
 
 async function getFileContent(filePath) {
   try {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`;
-    const res = await axios.get(url, { headers: getAuthHeaders() });
+    // キャッシュを防ぐために現在時刻のパラメータと no-cache ヘッダーを追加
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}?ref=main&t=${Date.now()}`;
+    const headers = { ...getAuthHeaders(), 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' };
+    const res = await axios.get(url, { headers });
     return {
       content: JSON.parse(fromBase64(res.data.content)),
       sha: res.data.sha
@@ -54,9 +56,17 @@ async function updateFileContent(filePath, contentObj, sha, message) {
 
 // --- 公開API ---
 
-async function getTrackedItems() {
+async function getTrackedItems(userId) {
   const result = await getFileContent('client/public/tracked_items.json');
-  return result.content || [];
+  const items = result.content || [];
+  
+  if (!userId) return items;
+  
+  // ユーザーIDが指定されている場合はフィルタリング（古いフォーマットの場合は全員に見せるか、空のusersにする）
+  return items.filter(item => {
+    if (!item.users) return true; // 古い互換性のため、usersがないアイテムは共有とする（新規は必ずusersが付く）
+    return item.users.includes(userId);
+  });
 }
 
 async function getPriceHistory() {
@@ -64,23 +74,48 @@ async function getPriceHistory() {
   return result.content || {};
 }
 
-async function addTrackedItem(url) {
+async function addTrackedItem(url, userId) {
   return enqueueWrite(async () => {
     const { content: items, sha } = await getFileContent('client/public/tracked_items.json');
-    if (items.some(item => item.url === url)) {
+    
+    let existingItem = items.find(item => item.url === url);
+    if (existingItem) {
+      if (!existingItem.users) existingItem.users = [];
+      if (!existingItem.users.includes(userId)) {
+        existingItem.users.push(userId);
+        await updateFileContent('client/public/tracked_items.json', items, sha, `feat: add user ${userId || 'anonymous'} to tracked item via API proxy`);
+        return { success: true };
+      }
       return { success: true, message: '既に追跡中です' };
     }
-    items.push({ url, name: '' });
+    
+    items.push({ url, name: '', users: userId ? [userId] : [] });
     await updateFileContent('client/public/tracked_items.json', items, sha, 'feat: add tracked item via API proxy');
     return { success: true };
   });
 }
 
-async function deleteTrackedItem(url) {
+async function deleteTrackedItem(url, userId) {
   return enqueueWrite(async () => {
     const { content: items, sha } = await getFileContent('client/public/tracked_items.json');
-    const newItems = items.filter(item => item.url !== url);
-    if (newItems.length !== items.length) {
+    
+    let isChanged = false;
+    const newItems = items.filter(item => {
+      if (item.url === url) {
+        if (item.users && userId) {
+          item.users = item.users.filter(u => u !== userId);
+          isChanged = true;
+          // まだ他のユーザーが追跡しているなら残す
+          if (item.users.length > 0) return true;
+        }
+        // usersが空になった、あるいは元々users管理されてないアイテムは完全に削除
+        isChanged = true;
+        return false;
+      }
+      return true;
+    });
+
+    if (isChanged) {
       await updateFileContent('client/public/tracked_items.json', newItems, sha, 'feat: remove tracked item via API proxy');
     }
     return { success: true };
@@ -90,8 +125,12 @@ async function deleteTrackedItem(url) {
 async function addPushSubscription(subscription) {
   return enqueueWrite(async () => {
     const { content: subs, sha } = await getFileContent('client/public/push_subscriptions.json');
-    const exists = subs.some(sub => sub.endpoint === subscription.endpoint);
-    if (!exists) {
+    // エンドポイントが同じなら、userIdなどで更新する
+    const existingIndex = subs.findIndex(sub => sub.endpoint === subscription.endpoint);
+    if (existingIndex >= 0) {
+      subs[existingIndex] = subscription;
+      await updateFileContent('client/public/push_subscriptions.json', subs, sha, 'feat: update push subscription via API proxy');
+    } else {
       subs.push(subscription);
       await updateFileContent('client/public/push_subscriptions.json', subs, sha, 'feat: add push subscription via API proxy');
     }

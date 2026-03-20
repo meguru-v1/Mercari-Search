@@ -29,8 +29,9 @@ app.get('/api/history', async (req, res) => {
 });
 
 app.get('/api/items', async (req, res) => {
+  const userId = req.query.userId || req.headers['x-user-id'];
   try {
-    const items = await github.getTrackedItems();
+    const items = await github.getTrackedItems(userId);
     res.json(items);
   } catch (error) {
     console.error('Error fetching items:', error.message);
@@ -40,11 +41,12 @@ app.get('/api/items', async (req, res) => {
 
 // 新しい商品を追加（GitHubに保存）
 app.post('/api/items', async (req, res) => {
-  const { url } = req.body;
+  const { url, userId } = req.body;
+  const uid = userId || req.headers['x-user-id'];
   if (!url) return res.status(400).json({ error: 'URLが必要です。' });
 
   try {
-    const result = await github.addTrackedItem(url);
+    const result = await github.addTrackedItem(url, uid);
     if (result.success) {
       res.json({ success: true });
     } else {
@@ -59,11 +61,12 @@ app.post('/api/items', async (req, res) => {
 // 商品の削除（GitHubから削除）
 app.post('/api/items/delete', async (req, res) => {
   // DELETEメソッドだとボディが送りにくい場合があるためPOSTでもURL削除を許容
-  const { url } = req.body;
+  const { url, userId } = req.body;
+  const uid = userId || req.headers['x-user-id'];
   if (!url) return res.status(400).json({ error: 'URLが必要です。' });
 
   try {
-    await github.deleteTrackedItem(url);
+    await github.deleteTrackedItem(url, uid);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting item:', error.message);
@@ -85,6 +88,7 @@ app.post('/api/scrape', async (req, res) => {
 // PWA Notificationの登録
 app.post('/api/subscribe', async (req, res) => {
   const subscription = req.body;
+  // userIdはサブスクリプションオブジェクトに持たせる
   if (!subscription || !subscription.endpoint) {
     return res.status(400).json({ error: 'Invalid subscription' });
   }
