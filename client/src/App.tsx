@@ -7,8 +7,8 @@ import './index.css';
 // VAPIDの公開鍵（後でGitHub/Render Secretsと統一して設定します）
 const PUBLIC_VAPID_KEY = 'BIHVKGHxqhmj2cEaZgNqG67Z2v-2Nl2z_qIuFqE51_B2q0K4hV9Zp8jO-9pTq1kS9yIlyMow-jqyct9qPqzxAx8Io';
 
-// APIプロキシのURL（Renderデプロイ後のURLに変更してください！）
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mercari-tracker-api.onrender.com';
+// APIプロキシのURL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mercari-api-moq9.onrender.com';
 
 const urlBase64ToUint8Array = (base64String: string) => {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
