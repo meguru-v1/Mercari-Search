@@ -115,6 +115,7 @@ async function main() {
   for (const item of trackedItems) {
     console.log(`Scraping: ${item.name || item.url}...`);
     const result = await scrapeMercariItem(item.url);
+    console.log('Scrape result:', result);
     
     // 削除済み判定
     if (result && result.isDeleted) {
