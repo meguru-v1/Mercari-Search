@@ -147,7 +147,7 @@ async function main() {
           timestamp: timestamp
         });
         
-        // Push通知を送信する（初回以外）
+        // Push通知を送信する
         if (lastEntry) {
           const diff = result.price - lastEntry.price;
           const arrow = diff > 0 ? '↑' : '↓';
@@ -156,6 +156,12 @@ async function main() {
           const body = `¥${lastEntry.price.toLocaleString()} → ¥${result.price.toLocaleString()} (${sign}¥${diff.toLocaleString()})`;
           await sendPushNotifications(title, body, item.users);
           console.log(`Push sent: ${title} / ${body}`);
+        } else {
+          // 初回取得時の通知
+          const title = `✨ 追跡開始: ${result.name}`;
+          const body = `最初の価格情報を取得しました：¥${result.price.toLocaleString()}`;
+          await sendPushNotifications(title, body, item.users);
+          console.log(`Push sent (First Fetch): ${title} / ${body}`);
         }
 
         // 履歴が多くなりすぎないように制限（直近100件）
