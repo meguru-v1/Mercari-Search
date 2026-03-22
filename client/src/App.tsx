@@ -62,7 +62,7 @@ function App() {
   const prevHistoryRef = useRef<HistoryData>({});
   
   // 楽観的UI保護状態のロード (useRefの遅延初期化を使用)
-  const recentlyAddedUrls = useRef<Map<string, {name: string, expiry: number}>>();
+  const recentlyAddedUrls = useRef<Map<string, {name: string, expiry: number}> | null>(null);
   if (!recentlyAddedUrls.current) {
     try {
       const saved = localStorage.getItem('recentlyAddedUrls');
@@ -72,7 +72,7 @@ function App() {
     }
   }
   
-  const recentlyDeletedUrls = useRef<Set<string>>();
+  const recentlyDeletedUrls = useRef<Set<string> | null>(null);
   if (!recentlyDeletedUrls.current) {
     try {
       const saved = localStorage.getItem('recentlyDeletedUrls');
