@@ -1,5 +1,5 @@
 self.addEventListener('push', function(event) {
-  let data = { title: 'Mercari Tracker', body: '価格が変動しました！', url: 'https://gaku27.github.io/Mercari-Search/' };
+  let data = { title: 'Mercari Tracker', body: '価格が変動しました！', url: 'https://meguru-v1.github.io/Mercari-Search/' };
 
   if (event.data) {
     try {

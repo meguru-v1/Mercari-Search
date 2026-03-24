@@ -2,7 +2,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO_OWNER = process.env.REPO_OWNER || 'GAKU27';
+const REPO_OWNER = process.env.REPO_OWNER || 'meguru-v1';
 const REPO_NAME = process.env.REPO_NAME || 'Mercari-Search';
 
 if (!GITHUB_TOKEN) {

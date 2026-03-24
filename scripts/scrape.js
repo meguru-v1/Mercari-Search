@@ -41,7 +41,7 @@ async function sendPushNotifications(title, body, targetUserIds) {
   const payload = JSON.stringify({
     title,
     body,
-    url: 'https://gaku27.github.io/Mercari-Search/'
+    url: 'https://meguru-v1.github.io/Mercari-Search/'
   });
 
   const promises = subs.map(sub => {
